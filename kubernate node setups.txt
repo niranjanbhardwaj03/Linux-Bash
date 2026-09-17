@@ -1,0 +1,189 @@
+Requirments
+===========================================================
+Master / Control Plane: k8s-master → 192.168.1.10
+Worker 1: k8s-worker1 → 192.168.1.11
+Worker 2: k8s-worker2 → 192.168.1.12
+Ubuntu 24.04 LTS
+Kubernetes using kubeadm
+Container runtime: containerd
+CNI: Calico
+Pod network: 192.168.0.0/16
+-----------------------------------------------------
+
+>>> Common Configuration <<<
+-------------------------------------------------------
+> Control-plane components:
+  kube-apiserver 
+  etcd
+  kube-scheduler
+  kube-controller-manager
+-----------------------
+> Node components:
+  containerd
+  kubelet
+  kube-proxy
+  CNI plugin
+------------------------------------------------------
+sudo hostnamectl set-hostname k8s-master
+sudo hostnamectl set-hostname k8s-Worker_1
+sudo hostnamectl set-hostname k8s-Worker_2
+------------------------------------------------------
+for all nodes:
+sudo nano /etc/hosts
+add configuration- Replace IP your machine IPs
+                   192.168.1.10 k8s-master
+                   192.168.1.11 k8s-worker_1
+                   192.168.1.12 k8s-worker_2
+
+------------------------------------------------------
+Ping form all node to eachother:
+ping -c 2 k8s-master
+ping -c 2 k8s-worker_1
+ping -c 2 k8s-worker_2
+------------------------------------------------------
+swapon --show or sudo swapoff -a
+sudo modprobe overlay
+sudo modprobe br_netfilter
+--------
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+      overlay
+      br_netfilter
+EOF
+
+then check:
+lsmod | grep overlay
+lsmod | grep br_netfilter
+-------------------------------------------------------
+cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward = 1
+EOF
+
+then:   sudo sysctl --system
+---------------------------------------------------------------------
+  sysctl net.ipv4.ip_forward >> output willbe : net.ipv4.ip_forward = 1
+  sysctl net.bridge.bridge-nf-call-iptables
+---------------------------------------------------------------------------------------
+>>Kubernetes needs a container runtime. We'll use containerd.
+  sudo apt update
+  sudo apt install -y containerd
+containerd --version
+sudo mkdir -p /etc/containerd
+containerd config default | sudo tee /etc/containerd/config.toml
+sudo nano /etc/containerd/config.toml >> change in line : SystemdCgroup = false to true
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+sudo systemctl restart containerd
+sudo systemctl enable containerd
+sudo systemctl status containerd
+------------------------------------------------------------------------------------------
+>> Install Kubernetes packages:
+                              kubeadm
+                              kubelet
+                              kubectl
+> Installation:
+              sudo apt update
+              sudo apt install -y apt-transport-https ca-certificates curl gpg
+              sudo mkdir -p -m 755 /etc/apt/keyrings
+              
+              curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key \
+                    | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+              
+              echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /' \
+                    | sudo tee /etc/apt/sources.list.d/kubernetes.list
+              
+              sudo apt update
+              sudo apt install -y kubelet kubeadm kubectl
+              sudo apt-mark hold kubelet kubeadm kubectl
+              kubeadm version
+              kubectl version --client
+              kubelet --version
+sudo systemctl enable kubelet
+sudo ufw status && sudo ufw disable
+ping -c 3 k8s-worker1
+ping -c 3 k8s-worker2
+nc -zv k8s-worker1 22
+nc -zv k8s-worker2 22
+ssh k8s-worker1
+ssh k8s-worker2
+
+================================================================================================================================================================
+>>> On Master:
+    Host Machine: k8s-Master
+
+   sudo kubeadm init \
+        --apiserver-advertise-address=192.168.1.10 \
+        --pod-network-cidr=192.168.0.0/16
+after this command you will get a node joining command: 
+   >> You will use it on each worker                     kubeadm join 192.168.1.10:6443 \
+                                                                            --token xxxxxxxxxxxxx \
+                                                                            --discovery-token-ca-cert-hash sha256:xxxxxxxxxxxxxxxx 
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.2/manifests/calico.yaml
+
+Test: kubectl get nodes
+      kubectl get pods -A
+      kubectl get pods -A -w
+================================================================================================================================================================
+>> Join WORKER 1 :: k8s-worker1 >>
+                              sudo kubeadm join 192.168.1.10:6443 \
+                                     --token xxxxxxxxxxxxx \
+                                     --discovery-token-ca-cert-hash sha256:xxxxxxxxxxxxxxxx
+
+
+
+>> Similar for other Nodes:  Join WORKER 2 >> k8s-worker2:
+                                                          sudo kubeadm join 192.168.1.10:6443 \
+                                                                         --token xxxxxxxxxxxxx \
+                                                                         --discovery-token-ca-cert-hash sha256:xxxxxxxxxxxxxxxx
+=================================================================================================================================================================
+
+Check Node Status: On Master:
+                            kubectl get nodes
+                            kubectl get pods
+                            kubectl get pods -A
+                            kubectl get namespaces
+systemctl status kubelet
+systemctl status containerd                         
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

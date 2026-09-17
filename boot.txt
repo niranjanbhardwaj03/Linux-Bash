@@ -1,0 +1,17 @@
+# Password Set to Boot Mode in Ubuntu OS
+#--------------------------------------------------------
+Command: grub-mkpasswd-pbkdf2
+then set your password: mypass123
+After that you will get a SHA512 Secret Key > save it into a file... 
+Example: boot-secretKey.txt
+---------------------------------------------------------
+Now open a File:
+sudo nano /etc/grub.d/40_custom
+
+in the file bottam add these below given line:
+
+set superusers="root"
+password_pbkdf2 root  Paste_Your_Secret-SHA512_Key
+---------------------------------------------------------
+
+PBKDF2 hash of your password is grub.pbkdf2.sha512.10000.2DE9EA56C2FDFEB0B6E658E05595823EA66168C4BAA08A96E98A460C336091C21DF9A6520B326BA1F0D24D92A785D61555E721863AC91B955AB8113E09C50C89.D5F9F70DFB55583278EE69DD6A990A39F8F0DFE3F0B898E10A08792959157FD35383874DF534CFBC7648334600A810AC2CA838F5A2B90718BD82575DC68A0783
